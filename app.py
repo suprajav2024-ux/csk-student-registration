@@ -116,12 +116,23 @@ def load_events():
             if s2:
                 event_options[grade][s2].append(event)
 
+            # 🔑 BUILD EVENT → SLOT MAP
+            slots = []
+            if s1:
+                slots.append(s1)
+            if s2:
+                slots.append(s2)
+
+            if len(slots) > 1:
+                event_slot_map[event] = slots
+
     for g in event_options:
         for s in event_options[g]:
             if "Not participating" not in event_options[g][s]:
                 event_options[g][s].insert(0, "Not participating")
 
     return event_options, event_slot_map
+
 
 
 EVENT_OPTIONS, EVENT_SLOT_MAP = load_events()
