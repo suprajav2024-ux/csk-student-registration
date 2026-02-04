@@ -38,23 +38,23 @@
                 <tbody>
                     {% for s in students %}
                     <tr>
-                        <td class="fw-medium">{{ s.name }}</td>
-                        <td>{{ s.grade }}</td>
-                        <td>{{ s.section }}</td>
-
-                        <td>{{ s.event_10_11 if s.event_10_11 != "Not participating" else "-" }}</td>
-                        <td>{{ s.event_11_12 if s.event_11_12 != "Not participating" else "-" }}</td>
-                        <td>{{ s.event_1_2 if s.event_1_2 != "Not participating" else "-" }}</td>
-                        <td>{{ s.event_2_3 if s.event_2_3 != "Not participating" else "-" }}</td>
-
+                        <td class="fw-medium">{{ s["Student Name"] }}</td>
+                        <td>{{ s["Class"] }}</td>
+                        <td>{{ s["Section"] }}</td>
+                    
+                        <td>{{ s["Event 10-11"] if s["Event 10-11"] != "Not participating" else "-" }}</td>
+                        <td>{{ s["Event 11-12"] if s["Event 11-12"] != "Not participating" else "-" }}</td>
+                        <td>{{ s["Event 1-2"] if s["Event 1-2"] != "Not participating" else "-" }}</td>
+                        <td>{{ s["Event 2-3"] if s["Event 2-3"] != "Not participating" else "-" }}</td>
+                    
                         <td class="d-flex gap-2">
-                            <a href="{{ url_for('edit_student', student_id=s.id) }}"
+                            <a href="{{ url_for('edit_student', name=s['Student Name']) }}"
                                class="btn btn-sm btn-outline-primary">
                                 Edit
                             </a>
-
+                    
                             <form method="POST"
-                                  action="{{ url_for('delete_student', student_id=s.id) }}"
+                                  action="{{ url_for('delete_student', name=s['Student Name']) }}"
                                   onsubmit="return confirm('Delete this student?');">
                                 <button class="btn btn-sm btn-outline-danger">
                                     Delete
