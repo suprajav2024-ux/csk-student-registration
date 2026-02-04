@@ -3,21 +3,20 @@ import csv
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
-import os
-import json
-import time
-
-# ---------------- CACHE ----------------
-CACHE = {}
-CACHE_TTL = 120  # seconds (speed + correctness)
-
-def clear_cache(user_email):
-    CACHE.pop(user_email, None)
+import os, json, time
 
 # ---------------- APP ----------------
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
+# ---------------- CACHE ----------------
+CACHE = {}
+CACHE_TTL = 60
+
+def clear_cache(user):
+    CACHE.pop(user, None)
+
+# ---------------- FILES ----------------
 FELLOWS_CSV = "Fellow Details _ School + Login - Sheet1.csv"
 EVENTS_CSV = "Event List - Sheet2.csv"
 SHEET_NAME = "CSK Student Event Registrations"
@@ -28,12 +27,10 @@ def get_sheet():
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
-
     creds = Credentials.from_service_account_info(
         json.loads(os.environ["GOOGLE_CREDS"]),
         scopes=scopes
     )
-
     client = gspread.authorize(creds)
     return client.open(SHEET_NAME).sheet1
 
@@ -55,42 +52,35 @@ def write_to_google_sheet(data):
     ])
 
 
-def read_latest_students_for_user(user_email):
+def read_latest_students(user_email):
     sheet = get_sheet()
     rows = sheet.get_all_records()
 
     latest = {}
-
     for r in rows:
         if r["Created By Email"] != user_email:
             continue
 
-        name = r["Student Name"]
-        action = r["Action"]
         ts = datetime.strptime(r["Timestamp"], "%d-%m-%Y %H:%M")
+        name = r["Student Name"]
 
         if name not in latest or ts > latest[name]["_ts"]:
             r["_ts"] = ts
             latest[name] = r
 
-    return [
-        r for r in latest.values()
-        if r["Action"] != "DELETED"
-    ]
+    return [r for r in latest.values() if r["Action"] != "DELETED"]
 
 
-def get_students_cached(user_email):
+def get_students_cached(user):
     now = time.time()
-
-    if user_email in CACHE:
-        data, ts = CACHE[user_email]
+    if user in CACHE:
+        data, ts = CACHE[user]
         if now - ts < CACHE_TTL:
             return data
 
-    data = read_latest_students_for_user(user_email)
-    CACHE[user_email] = (data, now)
+    data = read_latest_students(user)
+    CACHE[user] = (data, now)
     return data
-
 
 # ---------------- LOADERS ----------------
 def load_fellows():
@@ -98,9 +88,9 @@ def load_fellows():
     with open(FELLOWS_CSV, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            fellows[row["Email"].strip()] = {
-                "password": row["Password"].strip(),
-                "school": row["School"].strip()
+            fellows[row["Email"]] = {
+                "password": row["Password"],
+                "school": row["School"]
             }
     return fellows
 
@@ -112,41 +102,39 @@ def load_events():
     with open(EVENTS_CSV, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            grade = row["Class"].strip()
-            event = row["Event"].strip()
+            grade = row["Class"]
+            event = row["Event"]
+            s1 = row["Time Slot 1"]
+            s2 = row["Time Slot 2"]
 
-            slot1 = row["Time Slot 1"].strip()
-            slot2 = row["Time Slot 2"].strip()
+            event_options.setdefault(grade, {
+                "10-11am": [], "11-12pm": [], "1-2pm": [], "2-3pm": []
+            })
 
-            event_options.setdefault(grade, {})
-            for s in ["10-11am", "11-12pm", "1-2pm", "2-3pm"]:
-                event_options[grade].setdefault(s, [])
-
-            if slot1:
-                event_options[grade][slot1].append(event)
-            if slot2:
-                event_options[grade][slot2].append(event)
+            if s1:
+                event_options[grade][s1].append(event)
+            if s2:
+                event_options[grade][s2].append(event)
 
     for g in event_options:
         for s in event_options[g]:
             if "Not participating" not in event_options[g][s]:
                 event_options[g][s].insert(0, "Not participating")
 
-    return event_options
+    return event_options, event_slot_map
 
 
-EVENT_OPTIONS = load_events()
+EVENT_OPTIONS, EVENT_SLOT_MAP = load_events()
 
 # ---------------- AUTH ----------------
 @app.route("/", methods=["GET", "POST"])
 def login():
     fellows = load_fellows()
-
     if request.method == "POST":
-        email = request.form["email"].strip()
-        password = request.form["password"].strip()
+        email = request.form["email"]
+        pwd = request.form["password"]
 
-        if email in fellows and fellows[email]["password"] == password:
+        if email in fellows and fellows[email]["password"] == pwd:
             session["user_id"] = email
             session["school"] = fellows[email]["school"]
             return redirect(url_for("students"))
@@ -193,7 +181,11 @@ def register():
         clear_cache(session["user_id"])
         return redirect(url_for("students"))
 
-    return render_template("register.html", event_options=EVENT_OPTIONS)
+    return render_template(
+        "register.html",
+        event_options=EVENT_OPTIONS,
+        event_slot_map=EVENT_SLOT_MAP
+    )
 
 # ---------------- EDIT ----------------
 @app.route("/edit/<name>", methods=["GET", "POST"])
@@ -227,7 +219,8 @@ def edit_student(name):
     return render_template(
         "edit_student.html",
         student=student,
-        event_options=EVENT_OPTIONS
+        event_options=EVENT_OPTIONS,
+        event_slot_map=EVENT_SLOT_MAP
     )
 
 # ---------------- DELETE ----------------
@@ -254,27 +247,26 @@ def delete_student(name):
 
 # ---------------- EVENT VIEW ----------------
 @app.route("/events")
-def event_view():
+def events():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
     students = get_students_cached(session["user_id"])
-    events = {}
+    event_view = {}
 
     for s in students:
         for slot, key in [
             ("10–11am", "Event 10-11"),
             ("11–12pm", "Event 11-12"),
             ("1–2pm", "Event 1-2"),
-            ("2–3pm", "Event 2-3"),
+            ("2–3pm", "Event 2-3")
         ]:
-            event = s.get(key)
-            if event and event != "Not participating":
-                events.setdefault(slot, {})
-                events[slot].setdefault(event, [])
-                events[slot][event].append(s["Student Name"])
+            ev = s[key]
+            if ev != "Not participating":
+                event_view.setdefault(slot, {})
+                event_view[slot].setdefault(ev, []).append(s["Student Name"])
 
-    return render_template("event_view.html", events=events)
+    return render_template("event_view.html", events=event_view)
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
