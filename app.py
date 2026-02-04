@@ -6,10 +6,15 @@ from datetime import datetime
 import os
 import json
 import time
+
+# ---------------- CACHE ----------------
 CACHE = {}
-CACHE_TTL = 30  # seconds
+CACHE_TTL = 120  # seconds (speed + correctness)
 
+def clear_cache(user_email):
+    CACHE.pop(user_email, None)
 
+# ---------------- APP ----------------
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
@@ -17,18 +22,17 @@ FELLOWS_CSV = "Fellow Details _ School + Login - Sheet1.csv"
 EVENTS_CSV = "Event List - Sheet2.csv"
 SHEET_NAME = "CSK Student Event Registrations"
 
-# ---------- GOOGLE SHEET ----------
+# ---------------- GOOGLE SHEET ----------------
 def get_sheet():
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
 
-    if "GOOGLE_CREDS" in os.environ:
-        creds_dict = json.loads(os.environ["GOOGLE_CREDS"])
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-    else:
-        creds = Credentials.from_service_account_file("credentials.json", scopes=scopes)
+    creds = Credentials.from_service_account_info(
+        json.loads(os.environ["GOOGLE_CREDS"]),
+        scopes=scopes
+    )
 
     client = gspread.authorize(creds)
     return client.open(SHEET_NAME).sheet1
@@ -52,18 +56,7 @@ def write_to_google_sheet(data):
 
 
 def read_latest_students_for_user(user_email):
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-
-    creds = Credentials.from_service_account_info(
-        json.loads(os.environ["GOOGLE_CREDS"]),
-        scopes=scopes
-    )
-
-    client = gspread.authorize(creds)
-    sheet = client.open("CSK Student Event Registrations").sheet1
+    sheet = get_sheet()
     rows = sheet.get_all_records()
 
     latest = {}
@@ -74,24 +67,32 @@ def read_latest_students_for_user(user_email):
 
         name = r["Student Name"]
         action = r["Action"]
-
         ts = datetime.strptime(r["Timestamp"], "%d-%m-%Y %H:%M")
 
         if name not in latest or ts > latest[name]["_ts"]:
             r["_ts"] = ts
             latest[name] = r
 
-    # 🚨 REMOVE deleted students
-    final_students = [
+    return [
         r for r in latest.values()
         if r["Action"] != "DELETED"
     ]
 
-    return final_students
+
+def get_students_cached(user_email):
+    now = time.time()
+
+    if user_email in CACHE:
+        data, ts = CACHE[user_email]
+        if now - ts < CACHE_TTL:
+            return data
+
+    data = read_latest_students_for_user(user_email)
+    CACHE[user_email] = (data, now)
+    return data
 
 
-
-# ---------- LOADERS ----------
+# ---------------- LOADERS ----------------
 def load_fellows():
     fellows = {}
     with open(FELLOWS_CSV, newline="", encoding="utf-8") as f:
@@ -125,32 +126,18 @@ def load_events():
                 event_options[grade][slot1].append(event)
             if slot2:
                 event_options[grade][slot2].append(event)
-                event_slot_map[event] = True
 
     for g in event_options:
         for s in event_options[g]:
             if "Not participating" not in event_options[g][s]:
                 event_options[g][s].insert(0, "Not participating")
 
-    return event_options, event_slot_map
-
-def get_students_cached(user_email):
-    now = time.time()
-
-    if user_email in CACHE:
-        data, ts = CACHE[user_email]
-        if now - ts < CACHE_TTL:
-            return data
-
-    data = read_latest_students_for_user(user_email)
-    CACHE[user_email] = (data, now)
-    return data
+    return event_options
 
 
-EVENT_OPTIONS, EVENT_SLOT_MAP = load_events()
+EVENT_OPTIONS = load_events()
 
-
-# ---------- AUTH ----------
+# ---------------- AUTH ----------------
 @app.route("/", methods=["GET", "POST"])
 def login():
     fellows = load_fellows()
@@ -174,8 +161,7 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-
-# ---------- STUDENTS ----------
+# ---------------- STUDENTS ----------------
 @app.route("/students")
 def students():
     if "user_id" not in session:
@@ -184,8 +170,7 @@ def students():
     students = get_students_cached(session["user_id"])
     return render_template("students.html", students=students)
 
-
-# ---------- REGISTER ----------
+# ---------------- REGISTER ----------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if "user_id" not in session:
@@ -204,22 +189,19 @@ def register():
             "created_by_email": session["user_id"],
             "action": "CREATED"
         })
+
+        clear_cache(session["user_id"])
         return redirect(url_for("students"))
 
-    return render_template(
-        "register.html",
-        event_options=EVENT_OPTIONS,
-        event_slot_map=EVENT_SLOT_MAP
-    )
+    return render_template("register.html", event_options=EVENT_OPTIONS)
 
-
-# ---------- EDIT ----------
+# ---------------- EDIT ----------------
 @app.route("/edit/<name>", methods=["GET", "POST"])
 def edit_student(name):
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    students = read_latest_students_for_user(session["user_id"])
+    students = get_students_cached(session["user_id"])
     student = next((s for s in students if s["Student Name"] == name), None)
 
     if not student:
@@ -239,16 +221,16 @@ def edit_student(name):
             "action": "UPDATED"
         })
 
+        clear_cache(session["user_id"])
         return redirect(url_for("students"))
 
     return render_template(
         "edit_student.html",
         student=student,
-        event_options=EVENT_OPTIONS,
-        event_slot_map=EVENT_SLOT_MAP
+        event_options=EVENT_OPTIONS
     )
 
-# ---------- DELETE ----------
+# ---------------- DELETE ----------------
 @app.route("/delete/<name>", methods=["POST"])
 def delete_student(name):
     if "user_id" not in session:
@@ -267,9 +249,33 @@ def delete_student(name):
         "action": "DELETED"
     })
 
+    clear_cache(session["user_id"])
     return redirect(url_for("students"))
 
+# ---------------- EVENT VIEW ----------------
+@app.route("/events")
+def event_view():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
 
-# ---------- RUN ----------
+    students = get_students_cached(session["user_id"])
+    events = {}
+
+    for s in students:
+        for slot, key in [
+            ("10–11am", "Event 10-11"),
+            ("11–12pm", "Event 11-12"),
+            ("1–2pm", "Event 1-2"),
+            ("2–3pm", "Event 2-3"),
+        ]:
+            event = s.get(key)
+            if event and event != "Not participating":
+                events.setdefault(slot, {})
+                events[slot].setdefault(event, [])
+                events[slot][event].append(s["Student Name"])
+
+    return render_template("event_view.html", events=events)
+
+# ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
