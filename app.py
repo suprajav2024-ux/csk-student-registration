@@ -251,22 +251,30 @@ def events():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    students = get_students_cached(session["user_id"])
-    event_view = {}
+    students = read_latest_students_for_user(session["user_id"])
+
+    events = {}
 
     for s in students:
-        for slot, key in [
-            ("10–11am", "Event 10-11"),
-            ("11–12pm", "Event 11-12"),
-            ("1–2pm", "Event 1-2"),
-            ("2–3pm", "Event 2-3")
-        ]:
-            ev = s[key]
-            if ev != "Not participating":
-                event_view.setdefault(slot, {})
-                event_view[slot].setdefault(ev, []).append(s["Student Name"])
+        student_info = {
+            "name": s["Student Name"],
+            "grade": s["Class"],
+            "section": s["Section"]
+        }
 
-    return render_template("event_view.html", events=event_view)
+        slot_map = {
+            "10-11am": s["Event 10-11"],
+            "11-12pm": s["Event 11-12"],
+            "1-2pm": s["Event 1-2"],
+            "2-3pm": s["Event 2-3"]
+        }
+
+        for slot, event in slot_map.items():
+            if event and event != "Not participating":
+                events.setdefault(event, {}).setdefault(slot, []).append(student_info)
+
+    return render_template("event_view.html", events=events)
+
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
