@@ -7,27 +7,21 @@
 
         <form method="POST">
 
-            <!-- Student Info -->
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label">Student Name</label>
-                    <input
-                        type="text"
-                        class="form-control"
-                        name="name"
-                        value="{{ student['Student Name'] }}"
-                        required
-                    >
+                    <input type="text" class="form-control" name="name"
+                           value="{{ student['Student Name'] }}" required>
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label">Grade</label>
-                    <select class="form-select" id="grade_select" name="grade" required>
+                    <select class="form-select" name="grade" required>
                         {% for g in ['I','II','III','IV','V','VI','VII','VIII'] %}
-                            <option value="{{ g }}"
-                                {% if student['Class'] == g %}selected{% endif %}>
-                                {{ g }}
-                            </option>
+                        <option value="{{ g }}"
+                            {% if student['Class'] == g %}selected{% endif %}>
+                            {{ g }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -36,16 +30,15 @@
                     <label class="form-label">Section</label>
                     <select class="form-select" name="section" required>
                         {% for s in ['A','B','C'] %}
-                            <option value="{{ s }}"
-                                {% if student['Section'] == s %}selected{% endif %}>
-                                {{ s }}
-                            </option>
+                        <option value="{{ s }}"
+                            {% if student['Section'] == s %}selected{% endif %}>
+                            {{ s }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
 
-            <!-- Events -->
             <h5 class="mt-4">Events</h5>
             <div class="row">
 
@@ -56,22 +49,17 @@
                     ('2-3pm','event_2_3','Event 2-3')
                 ] %}
 
-                {% for label, name, sheet_key in slots %}
+                {% for label, field, sheet_key in slots %}
                 <div class="col-md-3 mb-3">
                     <label class="form-label fw-bold">{{ label }}</label>
-                    <select class="form-select event-slot" id="{{ name }}" name="{{ name }}">
-                        <option value="Not participating"
-                            {% if student[sheet_key] == "Not participating" %}selected{% endif %}>
-                            Not participating
-                        </option>
+                    <select class="form-select" name="{{ field }}">
+                        <option value="Not participating">Not participating</option>
 
                         {% for ev in event_options[student['Class']][label] %}
-                            {% if ev != "Not participating" %}
-                            <option value="{{ ev }}"
-                                {% if student[sheet_key] == ev %}selected{% endif %}>
-                                {{ ev }}
-                            </option>
-                            {% endif %}
+                        <option value="{{ ev }}"
+                            {% if student[sheet_key] == ev %}selected{% endif %}>
+                            {{ ev }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -79,39 +67,9 @@
 
             </div>
 
-            <button class="btn btn-primary w-100 mt-4">
-                Update Student
-            </button>
+            <button class="btn btn-primary w-100 mt-4">Update Student</button>
         </form>
     </div>
 </div>
-
-<script>
-const eventSlotMap = {{ event_slot_map | tojson }};
-
-function setupAutoSelect(fromId, toId) {
-    const from = document.getElementById(fromId);
-    const to = document.getElementById(toId);
-
-    from.addEventListener("change", () => {
-        const selected = from.value;
-        if (selected === "Not participating") return;
-
-        if (eventSlotMap[selected]) {
-            for (let opt of to.options) {
-                if (opt.value === selected) {
-                    to.value = selected;
-                }
-            }
-        }
-    });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    setupAutoSelect("event_10_11", "event_11_12");
-    setupAutoSelect("event_11_12", "event_1_2");
-    setupAutoSelect("event_1_2", "event_2_3");
-});
-</script>
 
 {% endblock %}
