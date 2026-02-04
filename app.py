@@ -5,6 +5,10 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 import os
 import json
+import time
+CACHE = {}
+CACHE_TTL = 30  # seconds
+
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
@@ -12,7 +16,6 @@ app.secret_key = "supersecretkey"
 FELLOWS_CSV = "Fellow Details _ School + Login - Sheet1.csv"
 EVENTS_CSV = "Event List - Sheet2.csv"
 SHEET_NAME = "CSK Student Event Registrations"
-
 
 # ---------- GOOGLE SHEET ----------
 def get_sheet():
@@ -48,25 +51,44 @@ def write_to_google_sheet(data):
     ])
 
 
-def read_latest_students_for_user(email):
-    sheet = get_sheet()
+def read_latest_students_for_user(user_email):
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    creds = Credentials.from_service_account_info(
+        json.loads(os.environ["GOOGLE_CREDS"]),
+        scopes=scopes
+    )
+
+    client = gspread.authorize(creds)
+    sheet = client.open("CSK Student Event Registrations").sheet1
     rows = sheet.get_all_records()
 
     latest = {}
 
     for r in rows:
-        if r["Created By Email"] != email:
+        if r["Created By Email"] != user_email:
             continue
 
         name = r["Student Name"]
+        action = r["Action"]
+
         ts = datetime.strptime(r["Timestamp"], "%d-%m-%Y %H:%M")
 
-        if name not in latest or ts > datetime.strptime(
-            latest[name]["Timestamp"], "%d-%m-%Y %H:%M"
-        ):
+        if name not in latest or ts > latest[name]["_ts"]:
+            r["_ts"] = ts
             latest[name] = r
 
-    return list(latest.values())
+    # 🚨 REMOVE deleted students
+    final_students = [
+        r for r in latest.values()
+        if r["Action"] != "DELETED"
+    ]
+
+    return final_students
+
 
 
 # ---------- LOADERS ----------
@@ -112,6 +134,18 @@ def load_events():
 
     return event_options, event_slot_map
 
+def get_students_cached(user_email):
+    now = time.time()
+
+    if user_email in CACHE:
+        data, ts = CACHE[user_email]
+        if now - ts < CACHE_TTL:
+            return data
+
+    data = read_latest_students_for_user(user_email)
+    CACHE[user_email] = (data, now)
+    return data
+
 
 EVENT_OPTIONS, EVENT_SLOT_MAP = load_events()
 
@@ -147,7 +181,7 @@ def students():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    students = read_latest_students_for_user(session["user_id"])
+    students = get_students_cached(session["user_id"])
     return render_template("students.html", students=students)
 
 
