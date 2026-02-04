@@ -20,13 +20,11 @@
         <div class="ms-auto d-flex align-items-center gap-3">
             <span class="school-name">{{ session.school }}</span>
             <a class="nav-link" href="{{ url_for('students') }}">Students</a>
-            <a class="nav-link" href="{{ url_for('event_view') }}">Event View</a>
             <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
         </div>
         {% endif %}
     </div>
 </nav>
-
 
 {% block content %}{% endblock %}
 
