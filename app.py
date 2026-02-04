@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-import sqlite3
 import csv
 import gspread
 from google.oauth2.service_account import Credentials
@@ -10,7 +9,6 @@ import json
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
-DATABASE = "database.db"
 FELLOWS_CSV = "Fellow Details _ School + Login - Sheet1.csv"
 EVENTS_CSV = "Event List - Sheet2.csv"
 
@@ -51,32 +49,48 @@ def write_to_google_sheet(data):
         data["action"]
     ])
 
+def read_latest_students_for_user(user_email):
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
 
+    if "GOOGLE_CREDS" in os.environ:
+        creds_dict = json.loads(os.environ["GOOGLE_CREDS"])
+        creds = Credentials.from_service_account_info(
+            creds_dict,
+            scopes=scopes
+        )
+    else:
+        creds = Credentials.from_service_account_file(
+            "credentials.json",
+            scopes=scopes
+        )
 
     client = gspread.authorize(creds)
     sheet = client.open("CSK Student Event Registrations").sheet1
 
-    sheet.append_row([
-        datetime.now().strftime("%d-%m-%Y %H:%M"),
-        data["school"],
-        data["grade"],
-        data["section"],
-        data["name"],
-        data["event_10_11"],
-        data["event_11_12"],
-        data["event_1_2"],
-        data["event_2_3"],
-        data["created_by_email"],
-        data["action"]
-    ])
+    rows = sheet.get_all_records()
 
+    latest = {}
 
+    for r in rows:
+        if r["created_by_email"] != user_email:
+            continue
 
+        name = r["name"]
+        ts = datetime.strptime(r["Timestamp"], "%d-%m-%Y %H:%M")
 
-def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+        if name not in latest:
+            latest[name] = r
+        else:
+            existing_ts = datetime.strptime(
+                latest[name]["Timestamp"], "%d-%m-%Y %H:%M"
+            )
+            if ts > existing_ts:
+                latest[name] = r
+
+    return list(latest.values())
 
 
 def load_fellows():
@@ -158,15 +172,8 @@ def students():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    conn = get_db()
-    rows = conn.execute("""
-        SELECT * FROM students
-        WHERE created_by = ?
-        ORDER BY id DESC
-    """, (session["user_id"],)).fetchall()
-    conn.close()
-
-    return render_template("students.html", students=rows)
+    students = read_latest_students_for_user(session["user_id"])
+    return render_template("students.html", students=students)
 
 
 # ---------- REGISTER NEW STUDENT ----------
@@ -177,24 +184,6 @@ def register():
         return redirect(url_for("login"))
 
     if request.method == "POST":
-        conn = get_db()
-        conn.execute("""
-            INSERT INTO students
-            (name, grade, section, school,
-             event_10_11, event_11_12, event_1_2, event_2_3,
-             created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            request.form["name"],
-            request.form["grade"],
-            request.form["section"],
-            session["school"],
-            request.form["event_10_11"],
-            request.form["event_11_12"],
-            request.form["event_1_2"],
-            request.form["event_2_3"],
-            session["user_id"]
-        ))
         write_to_google_sheet({
             "name": request.form["name"],
             "grade": request.form["grade"],
@@ -279,18 +268,23 @@ def edit_student(student_id):
 
 # ---------- DELETE STUDENT -------------
 
-@app.route("/delete/<int:student_id>", methods=["POST"])
-def delete_student(student_id):
+@app.route("/delete/<name>", methods=["POST"])
+def delete_student(name):
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    conn = get_db()
-    conn.execute(
-        "DELETE FROM students WHERE id = ? AND created_by = ?",
-        (student_id, session["user_id"])
-    )
-    conn.commit()
-    conn.close()
+    write_to_google_sheet({
+        "name": name,
+        "grade": "",
+        "section": "",
+        "school": session["school"],
+        "event_10_11": "",
+        "event_11_12": "",
+        "event_1_2": "",
+        "event_2_3": "",
+        "created_by_email": session["user_id"],
+        "action": "DELETED"
+    })
 
     return redirect(url_for("students"))
 
