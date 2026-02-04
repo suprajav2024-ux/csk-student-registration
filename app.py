@@ -251,7 +251,7 @@ def events():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    students = read_latest_students_for_user(session["user_id"])
+    students = get_students_cached(session["user_id"])
 
     events = {}
 
