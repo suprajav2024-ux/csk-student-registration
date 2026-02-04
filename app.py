@@ -7,14 +7,14 @@ import os
 import json
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret")
+app.secret_key = "supersecretkey"
 
 FELLOWS_CSV = "Fellow Details _ School + Login - Sheet1.csv"
 EVENTS_CSV = "Event List - Sheet2.csv"
+SHEET_NAME = "CSK Student Event Registrations"
 
 
-# ---------- GOOGLE SHEET HELPERS ----------
-
+# ---------- GOOGLE SHEET ----------
 def get_sheet():
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
@@ -28,7 +28,7 @@ def get_sheet():
         creds = Credentials.from_service_account_file("credentials.json", scopes=scopes)
 
     client = gspread.authorize(creds)
-    return client.open("CSK Student Event Registrations").sheet1
+    return client.open(SHEET_NAME).sheet1
 
 
 def write_to_google_sheet(data):
@@ -48,34 +48,28 @@ def write_to_google_sheet(data):
     ])
 
 
-def read_latest_students_for_user(user_email):
+def read_latest_students_for_user(email):
     sheet = get_sheet()
     rows = sheet.get_all_records()
 
     latest = {}
 
     for r in rows:
-        if r["Created By Email"] != user_email:
-            continue
-
-        if r["Action"] == "DELETED":
+        if r["Created By Email"] != email:
             continue
 
         name = r["Student Name"]
         ts = datetime.strptime(r["Timestamp"], "%d-%m-%Y %H:%M")
 
-        if name not in latest:
+        if name not in latest or ts > datetime.strptime(
+            latest[name]["Timestamp"], "%d-%m-%Y %H:%M"
+        ):
             latest[name] = r
-        else:
-            old_ts = datetime.strptime(latest[name]["Timestamp"], "%d-%m-%Y %H:%M")
-            if ts > old_ts:
-                latest[name] = r
 
     return list(latest.values())
 
 
-# ---------- LOAD STATIC DATA ----------
-
+# ---------- LOADERS ----------
 def load_fellows():
     fellows = {}
     with open(FELLOWS_CSV, newline="", encoding="utf-8") as f:
@@ -97,15 +91,13 @@ def load_events():
         for row in reader:
             grade = row["Class"].strip()
             event = row["Event"].strip()
+
             slot1 = row["Time Slot 1"].strip()
             slot2 = row["Time Slot 2"].strip()
 
-            event_options.setdefault(grade, {
-                "10-11am": [],
-                "11-12pm": [],
-                "1-2pm": [],
-                "2-3pm": []
-            })
+            event_options.setdefault(grade, {})
+            for s in ["10-11am", "11-12pm", "1-2pm", "2-3pm"]:
+                event_options[grade].setdefault(s, [])
 
             if slot1:
                 event_options[grade][slot1].append(event)
@@ -125,7 +117,6 @@ EVENT_OPTIONS, EVENT_SLOT_MAP = load_events()
 
 
 # ---------- AUTH ----------
-
 @app.route("/", methods=["GET", "POST"])
 def login():
     fellows = load_fellows()
@@ -151,7 +142,6 @@ def logout():
 
 
 # ---------- STUDENTS ----------
-
 @app.route("/students")
 def students():
     if "user_id" not in session:
@@ -162,7 +152,6 @@ def students():
 
 
 # ---------- REGISTER ----------
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if "user_id" not in session:
@@ -191,7 +180,6 @@ def register():
 
 
 # ---------- EDIT ----------
-
 @app.route("/edit/<name>", methods=["GET", "POST"])
 def edit_student(name):
     if "user_id" not in session:
@@ -217,14 +205,21 @@ def edit_student(name):
 
     return render_template(
         "edit_student.html",
-        student=student,
+        student={
+            "name": student["Student Name"],
+            "grade": student["Class"],
+            "section": student["Section"],
+            "event_10_11": student["Event 10-11"],
+            "event_11_12": student["Event 11-12"],
+            "event_1_2": student["Event 1-2"],
+            "event_2_3": student["Event 2-3"],
+        },
         event_options=EVENT_OPTIONS,
         event_slot_map=EVENT_SLOT_MAP
     )
 
 
 # ---------- DELETE ----------
-
 @app.route("/delete/<name>", methods=["POST"])
 def delete_student(name):
     if "user_id" not in session:
@@ -247,6 +242,5 @@ def delete_student(name):
 
 
 # ---------- RUN ----------
-
 if __name__ == "__main__":
     app.run(debug=True)
