@@ -75,10 +75,10 @@ def read_latest_students_for_user(user_email):
     latest = {}
 
     for r in rows:
-        if r["created_by_email"] != user_email:
+        if r["Created By Email"] != user_email:
             continue
 
-        name = r["name"]
+        name = r["Student Name"]
         ts = datetime.strptime(r["Timestamp"], "%d-%m-%Y %H:%M")
 
         if name not in latest:
@@ -91,7 +91,6 @@ def read_latest_students_for_user(user_email):
                 latest[name] = r
 
     return list(latest.values())
-
 
 def load_fellows():
     fellows = {}
