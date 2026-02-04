@@ -27,7 +27,7 @@ def write_to_google_sheet(data):
     creds = Credentials.from_service_account_info(
         creds_dict,
         scopes=scopes
-    )
+        )
     else:
         creds = Credentials.from_service_account_file(
             "credentials.json",
