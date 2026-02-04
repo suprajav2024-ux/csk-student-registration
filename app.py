@@ -256,12 +256,6 @@ def events():
     events = {}
 
     for s in students:
-        student_info = {
-            "name": s["Student Name"],
-            "grade": s["Class"],
-            "section": s["Section"]
-        }
-
         slot_map = {
             "10-11am": s["Event 10-11"],
             "11-12pm": s["Event 11-12"],
@@ -271,7 +265,12 @@ def events():
 
         for slot, event in slot_map.items():
             if event and event != "Not participating":
-                events.setdefault(event, {}).setdefault(slot, []).append(student_info)
+                events.setdefault(event, []).append({
+                    "name": s["Student Name"],
+                    "grade": s["Class"],
+                    "section": s["Section"],
+                    "slot": slot
+                })
 
     return render_template("event_view.html", events=events)
 
