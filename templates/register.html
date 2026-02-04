@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-5">
+    <div class="card shadow-sm p-4 mx-auto" style="max-width: 900px;">
+        <h2 class="text-center mb-4">Register New Student</h2>
+
+        <form method="POST">
+
+            <!-- Student Info -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Student Name</label>
+                    <input type="text" class="form-control" name="name" required>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Grade</label>
+                    <select class="form-select" id="grade_select" name="grade" required>
+                        <option value="">Select Grade</option>
+                        {% for g in ['I','II','III','IV','V','VI','VII','VIII'] %}
+                            <option value="{{ g }}">{{ g }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Section</label>
+                    <select class="form-select" name="section" required>
+                        <option value="">Select</option>
+                        <option>A</option><option>B</option><option>C</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Events -->
+            <h5 class="mt-4">Events</h5>
+            <div class="row">
+
+                {% set slots = [
+                    ('10-11am','event_10_11'),
+                    ('11-12pm','event_11_12'),
+                    ('1-2pm','event_1_2'),
+                    ('2-3pm','event_2_3')
+                ] %}
+
+                {% for label, name in slots %}
+                <div class="col-md-3 mb-3">
+                    <label class="form-label fw-bold">{{ label }}</label>
+                    <select class="form-select event-slot" name="{{ name }}" id="{{ name }}">
+                        <option value="Not participating">Not participating</option>
+                    </select>
+                </div>
+                {% endfor %}
+
+            </div>
+
+            <button class="btn btn-primary w-100 mt-4">Register Student</button>
+        </form>
+    </div>
+</div>
+
+<script>
+const eventOptions = {{ event_options | tojson }};
+const eventSlotMap = {{ event_slot_map | tojson }};
+
+const gradeSelect = document.getElementById("grade_select");
+
+function populateEvents(grade) {
+    if (!grade) return;
+
+    const mapping = {
+        "10-11am": "event_10_11",
+        "11-12pm": "event_11_12",
+        "1-2pm": "event_1_2",
+        "2-3pm": "event_2_3"
+    };
+
+    for (const [slot, selectId] of Object.entries(mapping)) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = '<option value="Not participating">Not participating</option>';
+
+        eventOptions[grade][slot].forEach(ev => {
+            if (ev !== "Not participating") {
+                const opt = document.createElement("option");
+                opt.value = ev;
+                opt.textContent = ev;
+                select.appendChild(opt);
+            }
+        });
+    }
+}
+
+function setupAutoSelect(fromId, toId) {
+    const from = document.getElementById(fromId);
+    const to = document.getElementById(toId);
+
+    from.addEventListener("change", () => {
+        const selected = from.value;
+        if (selected === "Not participating") return;
+
+        if (eventSlotMap[selected]) {
+            for (let opt of to.options) {
+                if (opt.value === selected) {
+                    to.value = selected;
+                }
+            }
+        }
+    });
+}
+
+gradeSelect.addEventListener("change", () => {
+    populateEvents(gradeSelect.value);
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    setupAutoSelect("event_10_11", "event_11_12");
+    setupAutoSelect("event_11_12", "event_1_2");
+    setupAutoSelect("event_1_2", "event_2_3");
+});
+</script>
+
+{% endblock %}

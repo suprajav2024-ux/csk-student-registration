@@ -1,0 +1,13 @@
+{% include "header.html" %}
+<div class="container">
+  {% for event, kids in event_map.items() %}
+    <div class="card">
+      <h3>{{ event }}</h3>
+      <ul>
+        {% for kid in kids %}
+          <li>{{ kid }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endfor %}
+</div>

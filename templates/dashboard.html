@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Header / Event Banner -->
+<div class="container mt-4">
+  <div class="card shadow-lg border-0 rounded-3 mb-4" style="background: linear-gradient(90deg, #007bff, #00bcd4); color: white;">
+    <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-center">
+      <div>
+        <h2 class="fw-bold mb-1">🎉 Chennai Students Kondattam</h2>
+        <p class="mb-0">Empowering young minds through fun and creativity!</p>
+      </div>
+      <div class="text-end mt-3 mt-md-0">
+        <a href="{{ url_for('logout') }}" class="btn btn-light text-primary fw-bold shadow-sm px-4">
+          Logout
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Card -->
+<div class="container mb-4">
+  <div class="card shadow-sm border-0 rounded-3 p-3 bg-light">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <h4 class="text-primary fw-bold mb-1">{{ teacher_name }}</h4>
+        <p class="text-muted mb-1"><strong>🏫 School:</strong> {{ school }}</p>
+      </div>
+      <div class="col-md-4 text-md-end mt-2 mt-md-0">
+        <span class="badge bg-primary fs-6 px-3 py-2 shadow-sm">
+          👥 Total Registered: {{ total_students }}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Register Button -->
+<div class="container mb-4 text-end">
+  <a href="{{ url_for('register') }}" class="btn btn-primary px-4 py-2 shadow-sm fw-semibold">
+    ➕ Register New Student
+  </a>
+</div>
+
+<!-- Student Table -->
+<div class="container mb-5">
+  <div class="card shadow-sm border-0 rounded-3">
+    <div class="card-body">
+      <h5 class="text-primary mb-3 fw-bold">Registered Students</h5>
+      {% if students %}
+      <div class="table-responsive">
+        <table class="table table-striped align-middle">
+          <thead class="table-primary">
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Name</th>
+              <th scope="col">Grade</th>
+              <th scope="col">Section</th>
+              <th scope="col">Parent's Phone</th>
+              <th scope="col">10-11am</th>
+              <th scope="col">11-12pm</th>
+              <th scope="col">1-2pm</th>
+              <th scope="col">2-3pm</th>
+              <th scope="col">Consent File</th>
+              <th scope="col" class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for student in students %}
+            <tr>
+              <th scope="row">{{ loop.index }}</th>
+              <td>{{ student.name }}</td>
+              <td>{{ student.grade }}</td>
+              <td>{{ student.section }}</td>
+              <td>{{ student.phone }}</td>
+              <td>{{ student.event_10_11 }}</td>
+              <td>{{ student.event_11_12 }}</td>
+              <td>{{ student.event_1_2 }}</td>
+              <td>{{ student.event_2_3 }}</td>
+              <td>
+                {% if student.consent_file %}
+                <a href="{{ url_for('uploaded_file', filename=student.consent_file) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                  View
+                </a>
+                {% else %}
+                <span class="text-muted">No File</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <a href="{{ url_for('edit_student', student_id=student.id) }}" class="btn btn-sm btn-outline-secondary">
+                  Edit
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-center text-muted mb-0">No students registered yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --sage: #268a3b;
+    --mint: #cad2c5;
+    --sand: #f6f5f1;
+    --sky: #e9f2f1;
+    --ink: #2f3e46;
+    --muted: #6b7280;
+}
+
+/* BASE */
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: linear-gradient(180deg, var(--sky), var(--sand));
+    color: var(--ink);
+    min-height: 100vh;
+}
+
+/* NAVBAR */
+.navbar {
+    background-color: var(--sage);
+    padding: 0.75rem 0;
+}
+
+.navbar-brand {
+    color: white !important;
+    font-weight: 700;
+}
+
+/* THIS FIXES THE SCHOOL NAME ISSUE */
+.navbar .school-name {
+    color: #fefefe !important;
+    font-weight: 600;
+    opacity: 0.95;
+}
+
+/* NAV LINKS */
+.nav-link {
+    color: #f1f5f9 !important;
+    font-weight: 500;
+}
+
+.nav-link:hover {
+    color: white !important;
+    text-decoration: underline;
+}
+
+/* CARDS */
+.card {
+    border-radius: 18px;
+    border: none;
+    background-color: white;
+}
+
+/* TABLE */
+.table thead th {
+    color: var(--muted);
+    font-weight: 600;
+}
+
+/* BUTTONS */
+.btn-primary {
+    background-color: var(--sage);
+    border: none;
+}
+
+.btn-primary:hover {
+    background-color: #6f9280;
+}
+
+.btn-outline-primary {
+    border-color: var(--sage);
+    color: var(--sage);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--sage);
+    color: white;
+}
+
+/* DELETE */
+.btn-outline-danger {
+    border-color: #e29578;
+    color: #e29578;
+}
+
+.btn-outline-danger:hover {
+    background-color: #e29578;
+    color: white;
+}

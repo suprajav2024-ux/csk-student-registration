@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-5">
+    <h2 class="mb-4 text-center">Event-wise Registrations</h2>
+
+    {% for event, slots in events.items() %}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <h4 class="mb-3">{{ event }}</h4>
+
+                {% for slot, students in slots.items() %}
+                    <h6 class="text-muted">{{ slot }}</h6>
+
+                    <table class="table table-sm mb-4">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Grade</th>
+                                <th>Section</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in students %}
+                            <tr>
+                                <td>{{ s.name }}</td>
+                                <td>{{ s.grade }}</td>
+                                <td>{{ s.section }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{% endblock %}
