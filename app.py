@@ -23,16 +23,34 @@ def write_to_google_sheet(data):
     ]
 
     if "GOOGLE_CREDS" in os.environ:
-    creds_dict = json.loads(os.environ["GOOGLE_CREDS"])
-    creds = Credentials.from_service_account_info(
-        creds_dict,
-        scopes=scopes
+        creds_dict = json.loads(os.environ["GOOGLE_CREDS"])
+        creds = Credentials.from_service_account_info(
+            creds_dict,
+            scopes=scopes
         )
     else:
         creds = Credentials.from_service_account_file(
             "credentials.json",
             scopes=scopes
         )
+
+    client = gspread.authorize(creds)
+    sheet = client.open("CSK Student Event Registrations").sheet1
+
+    sheet.append_row([
+        datetime.now().strftime("%d-%m-%Y %H:%M"),
+        data["school"],
+        data["grade"],
+        data["section"],
+        data["name"],
+        data["event_10_11"],
+        data["event_11_12"],
+        data["event_1_2"],
+        data["event_2_3"],
+        data["created_by_email"],
+        data["action"]
+    ])
+
 
 
     client = gspread.authorize(creds)
