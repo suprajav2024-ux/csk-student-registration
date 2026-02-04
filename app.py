@@ -7,14 +7,15 @@ import os
 import json
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret")
 
 FELLOWS_CSV = "Fellow Details _ School + Login - Sheet1.csv"
 EVENTS_CSV = "Event List - Sheet2.csv"
 
 
-# ---------- HELPERS ----------
-def write_to_google_sheet(data):
+# ---------- GOOGLE SHEET HELPERS ----------
+
+def get_sheet():
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
@@ -22,19 +23,16 @@ def write_to_google_sheet(data):
 
     if "GOOGLE_CREDS" in os.environ:
         creds_dict = json.loads(os.environ["GOOGLE_CREDS"])
-        creds = Credentials.from_service_account_info(
-            creds_dict,
-            scopes=scopes
-        )
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
     else:
-        creds = Credentials.from_service_account_file(
-            "credentials.json",
-            scopes=scopes
-        )
+        creds = Credentials.from_service_account_file("credentials.json", scopes=scopes)
 
     client = gspread.authorize(creds)
-    sheet = client.open("CSK Student Event Registrations").sheet1
+    return client.open("CSK Student Event Registrations").sheet1
 
+
+def write_to_google_sheet(data):
+    sheet = get_sheet()
     sheet.append_row([
         datetime.now().strftime("%d-%m-%Y %H:%M"),
         data["school"],
@@ -49,27 +47,9 @@ def write_to_google_sheet(data):
         data["action"]
     ])
 
+
 def read_latest_students_for_user(user_email):
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-
-    if "GOOGLE_CREDS" in os.environ:
-        creds_dict = json.loads(os.environ["GOOGLE_CREDS"])
-        creds = Credentials.from_service_account_info(
-            creds_dict,
-            scopes=scopes
-        )
-    else:
-        creds = Credentials.from_service_account_file(
-            "credentials.json",
-            scopes=scopes
-        )
-
-    client = gspread.authorize(creds)
-    sheet = client.open("CSK Student Event Registrations").sheet1
-
+    sheet = get_sheet()
     rows = sheet.get_all_records()
 
     latest = {}
@@ -78,19 +58,23 @@ def read_latest_students_for_user(user_email):
         if r["Created By Email"] != user_email:
             continue
 
+        if r["Action"] == "DELETED":
+            continue
+
         name = r["Student Name"]
         ts = datetime.strptime(r["Timestamp"], "%d-%m-%Y %H:%M")
 
         if name not in latest:
             latest[name] = r
         else:
-            existing_ts = datetime.strptime(
-                latest[name]["Timestamp"], "%d-%m-%Y %H:%M"
-            )
-            if ts > existing_ts:
+            old_ts = datetime.strptime(latest[name]["Timestamp"], "%d-%m-%Y %H:%M")
+            if ts > old_ts:
                 latest[name] = r
 
     return list(latest.values())
+
+
+# ---------- LOAD STATIC DATA ----------
 
 def load_fellows():
     fellows = {}
@@ -113,13 +97,15 @@ def load_events():
         for row in reader:
             grade = row["Class"].strip()
             event = row["Event"].strip()
-
             slot1 = row["Time Slot 1"].strip()
             slot2 = row["Time Slot 2"].strip()
 
-            event_options.setdefault(grade, {})
-            for s in ["10-11am", "11-12pm", "1-2pm", "2-3pm"]:
-                event_options[grade].setdefault(s, [])
+            event_options.setdefault(grade, {
+                "10-11am": [],
+                "11-12pm": [],
+                "1-2pm": [],
+                "2-3pm": []
+            })
 
             if slot1:
                 event_options[grade][slot1].append(event)
@@ -164,7 +150,7 @@ def logout():
     return redirect(url_for("login"))
 
 
-# ---------- HOME: STUDENT LIST ----------
+# ---------- STUDENTS ----------
 
 @app.route("/students")
 def students():
@@ -175,7 +161,7 @@ def students():
     return render_template("students.html", students=students)
 
 
-# ---------- REGISTER NEW STUDENT ----------
+# ---------- REGISTER ----------
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -195,11 +181,6 @@ def register():
             "created_by_email": session["user_id"],
             "action": "CREATED"
         })
-
-
-        conn.commit()
-        conn.close()
-
         return redirect(url_for("students"))
 
     return render_template(
@@ -211,29 +192,15 @@ def register():
 
 # ---------- EDIT ----------
 
-@app.route("/edit/<int:student_id>", methods=["GET", "POST"])
-def edit_student(student_id):
+@app.route("/edit/<name>", methods=["GET", "POST"])
+def edit_student(name):
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    conn = get_db()
+    students = read_latest_students_for_user(session["user_id"])
+    student = next(s for s in students if s["Student Name"] == name)
 
     if request.method == "POST":
-        conn.execute("""
-            UPDATE students SET
-            name=?, grade=?, section=?,
-            event_10_11=?, event_11_12=?, event_1_2=?, event_2_3=?
-            WHERE id=?
-        """, (
-            request.form["name"],
-            request.form["grade"],
-            request.form["section"],
-            request.form["event_10_11"],
-            request.form["event_11_12"],
-            request.form["event_1_2"],
-            request.form["event_2_3"],
-            student_id
-        ))
         write_to_google_sheet({
             "name": request.form["name"],
             "grade": request.form["grade"],
@@ -246,17 +213,7 @@ def edit_student(student_id):
             "created_by_email": session["user_id"],
             "action": "UPDATED"
         })
-
-
-        conn.commit()
-        conn.close()
         return redirect(url_for("students"))
-
-    student = conn.execute(
-        "SELECT * FROM students WHERE id=?",
-        (student_id,)
-    ).fetchone()
-    conn.close()
 
     return render_template(
         "edit_student.html",
@@ -265,7 +222,8 @@ def edit_student(student_id):
         event_slot_map=EVENT_SLOT_MAP
     )
 
-# ---------- DELETE STUDENT -------------
+
+# ---------- DELETE ----------
 
 @app.route("/delete/<name>", methods=["POST"])
 def delete_student(name):
@@ -286,45 +244,6 @@ def delete_student(name):
     })
 
     return redirect(url_for("students"))
-
-
-# ---------- EVENT VIEW ----------
-
-@app.route("/event-view")
-def event_view():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-
-    conn = get_db()
-    rows = conn.execute("""
-        SELECT name, grade, section,
-               event_10_11, event_11_12, event_1_2, event_2_3
-        FROM students
-        WHERE created_by = ?
-    """, (session["user_id"],)).fetchall()
-    conn.close()
-
-    events = {}
-
-    for r in rows:
-        student = {
-            "name": r["name"],
-            "grade": r["grade"],
-            "section": r["section"]
-        }
-
-        slots = {
-            "10-11am": r["event_10_11"],
-            "11-12pm": r["event_11_12"],
-            "1-2pm": r["event_1_2"],
-            "2-3pm": r["event_2_3"]
-        }
-
-        for slot, event in slots.items():
-            if event and event != "Not participating":
-                events.setdefault(event, {}).setdefault(slot, []).append(student)
-
-    return render_template("event_view.html", events=events)
 
 
 # ---------- RUN ----------
