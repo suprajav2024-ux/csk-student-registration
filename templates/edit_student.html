@@ -7,6 +7,7 @@
 
         <form method="POST">
 
+            <!-- Student Info -->
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label">Student Name</label>
@@ -39,6 +40,7 @@
                 </div>
             </div>
 
+            <!-- Events -->
             <h5 class="mt-4">Events</h5>
             <div class="row">
 
@@ -52,8 +54,10 @@
                 {% for label, field, sheet_key in slots %}
                 <div class="col-md-3 mb-3">
                     <label class="form-label fw-bold">{{ label }}</label>
-                    <select class="form-select event-slot" name="{{ field }}" id="{{ field }}">
+                    <select class="form-select event-slot"
+                            id="{{ field }}" name="{{ field }}">
                         <option value="Not participating">Not participating</option>
+
                         {% for ev in event_options[student['Class']][label] %}
                         <option value="{{ ev }}"
                             {% if student[sheet_key] == ev %}selected{% endif %}>
@@ -72,6 +76,7 @@
 </div>
 
 <script>
+const eventOptions = {{ event_options | tojson }};
 const eventSlotMap = {{ event_slot_map | tojson }};
 
 const slotIdMap = {
@@ -81,6 +86,9 @@ const slotIdMap = {
     "2-3pm": "event_2_3"
 };
 
+let activeLinkedEvent = null;
+
+/* ---------- Helpers ---------- */
 function resetSlot(selectId) {
     const select = document.getElementById(selectId);
     for (let opt of select.options) {
@@ -96,21 +104,57 @@ function lockSlot(selectId, allowedEvent) {
     select.value = allowedEvent;
 }
 
+/* ---------- Core logic ---------- */
 function handleSlotChange(changedSelectId) {
-    const selectedEvent = document.getElementById(changedSelectId).value;
+    const changedSelect = document.getElementById(changedSelectId);
+    const selectedEvent = changedSelect.value;
 
+    // CASE 1: switched to Not participating
+    if (selectedEvent === "Not participating") {
+
+        if (activeLinkedEvent && eventSlotMap[activeLinkedEvent]) {
+            eventSlotMap[activeLinkedEvent].forEach(slot => {
+                document.getElementById(slotIdMap[slot]).value = "Not participating";
+            });
+        }
+
+        activeLinkedEvent = null;
+        Object.values(slotIdMap).forEach(resetSlot);
+        return;
+    }
+
+    // CASE 2: multi-slot event
+    if (eventSlotMap[selectedEvent]) {
+        activeLinkedEvent = selectedEvent;
+
+        eventSlotMap[selectedEvent].forEach(slot => {
+            lockSlot(slotIdMap[slot], selectedEvent);
+        });
+        return;
+    }
+
+    // CASE 3: single-slot event
+    activeLinkedEvent = null;
     Object.values(slotIdMap).forEach(resetSlot);
-
-    if (!eventSlotMap[selectedEvent]) return;
-
-    eventSlotMap[selectedEvent].forEach(slot => {
-        lockSlot(slotIdMap[slot], selectedEvent);
-    });
 }
 
+/* ---------- Attach listeners ---------- */
 Object.values(slotIdMap).forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
         handleSlotChange(id);
+    });
+});
+
+/* ---------- Initialize existing linked events on load ---------- */
+document.addEventListener("DOMContentLoaded", () => {
+    Object.values(slotIdMap).forEach(id => {
+        const val = document.getElementById(id).value;
+        if (eventSlotMap[val]) {
+            activeLinkedEvent = val;
+            eventSlotMap[val].forEach(slot => {
+                lockSlot(slotIdMap[slot], val);
+            });
+        }
     });
 });
 </script>
