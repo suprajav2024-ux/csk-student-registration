@@ -16,7 +16,7 @@
 
                 <div class="col-md-3">
                     <label class="form-label">Grade</label>
-                    <select class="form-select" name="grade" required>
+                    <select class="form-select" id="grade_select" name="grade" required>
                         {% for g in ['I','II','III','IV','V','VI','VII','VIII'] %}
                         <option value="{{ g }}"
                             {% if student['Class'] == g %}selected{% endif %}>
@@ -52,9 +52,8 @@
                 {% for label, field, sheet_key in slots %}
                 <div class="col-md-3 mb-3">
                     <label class="form-label fw-bold">{{ label }}</label>
-                    <select class="form-select" name="{{ field }}">
+                    <select class="form-select event-slot" name="{{ field }}" id="{{ field }}">
                         <option value="Not participating">Not participating</option>
-
                         {% for ev in event_options[student['Class']][label] %}
                         <option value="{{ ev }}"
                             {% if student[sheet_key] == ev %}selected{% endif %}>
@@ -71,5 +70,49 @@
         </form>
     </div>
 </div>
+
+<script>
+const eventSlotMap = {{ event_slot_map | tojson }};
+
+const slotIdMap = {
+    "10-11am": "event_10_11",
+    "11-12pm": "event_11_12",
+    "1-2pm": "event_1_2",
+    "2-3pm": "event_2_3"
+};
+
+function resetSlot(selectId) {
+    const select = document.getElementById(selectId);
+    for (let opt of select.options) {
+        opt.disabled = false;
+    }
+}
+
+function lockSlot(selectId, allowedEvent) {
+    const select = document.getElementById(selectId);
+    for (let opt of select.options) {
+        opt.disabled = (opt.value !== allowedEvent && opt.value !== "Not participating");
+    }
+    select.value = allowedEvent;
+}
+
+function handleSlotChange(changedSelectId) {
+    const selectedEvent = document.getElementById(changedSelectId).value;
+
+    Object.values(slotIdMap).forEach(resetSlot);
+
+    if (!eventSlotMap[selectedEvent]) return;
+
+    eventSlotMap[selectedEvent].forEach(slot => {
+        lockSlot(slotIdMap[slot], selectedEvent);
+    });
+}
+
+Object.values(slotIdMap).forEach(id => {
+    document.getElementById(id).addEventListener("change", () => {
+        handleSlotChange(id);
+    });
+});
+</script>
 
 {% endblock %}
