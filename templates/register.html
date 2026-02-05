@@ -66,17 +66,18 @@ const eventSlotMap = {{ event_slot_map | tojson }};
 
 const gradeSelect = document.getElementById("grade_select");
 
+const slotIdMap = {
+    "10-11am": "event_10_11",
+    "11-12pm": "event_11_12",
+    "1-2pm": "event_1_2",
+    "2-3pm": "event_2_3"
+};
+
+/* ---------- Populate events by grade ---------- */
 function populateEvents(grade) {
     if (!grade) return;
 
-    const mapping = {
-        "10-11am": "event_10_11",
-        "11-12pm": "event_11_12",
-        "1-2pm": "event_1_2",
-        "2-3pm": "event_2_3"
-    };
-
-    for (const [slot, selectId] of Object.entries(mapping)) {
+    for (const [slot, selectId] of Object.entries(slotIdMap)) {
         const select = document.getElementById(selectId);
         select.innerHTML = '<option value="Not participating">Not participating</option>';
 
@@ -91,32 +92,44 @@ function populateEvents(grade) {
     }
 }
 
-function setupAutoSelect(fromId, toId) {
-    const from = document.getElementById(fromId);
-    const to = document.getElementById(toId);
+/* ---------- Helpers ---------- */
+function resetSlot(selectId) {
+    const select = document.getElementById(selectId);
+    for (let opt of select.options) {
+        opt.disabled = false;
+    }
+}
 
-    from.addEventListener("change", () => {
-        const selected = from.value;
-        if (selected === "Not participating") return;
+function lockSlot(selectId, allowedEvent) {
+    const select = document.getElementById(selectId);
+    for (let opt of select.options) {
+        opt.disabled = (opt.value !== allowedEvent && opt.value !== "Not participating");
+    }
+    select.value = allowedEvent;
+}
 
-        if (eventSlotMap[selected]) {
-            for (let opt of to.options) {
-                if (opt.value === selected) {
-                    to.value = selected;
-                }
-            }
-        }
+/* ---------- Core logic ---------- */
+function handleSlotChange(changedSelectId) {
+    const selectedEvent = document.getElementById(changedSelectId).value;
+
+    Object.values(slotIdMap).forEach(resetSlot);
+
+    if (!eventSlotMap[selectedEvent]) return;
+
+    eventSlotMap[selectedEvent].forEach(slot => {
+        lockSlot(slotIdMap[slot], selectedEvent);
     });
 }
 
+/* ---------- Event listeners ---------- */
 gradeSelect.addEventListener("change", () => {
     populateEvents(gradeSelect.value);
 });
 
-document.addEventListener("DOMContentLoaded", () => {
-    setupAutoSelect("event_10_11", "event_11_12");
-    setupAutoSelect("event_11_12", "event_1_2");
-    setupAutoSelect("event_1_2", "event_2_3");
+Object.values(slotIdMap).forEach(id => {
+    document.getElementById(id).addEventListener("change", () => {
+        handleSlotChange(id);
+    });
 });
 </script>
 
