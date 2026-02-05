@@ -47,7 +47,7 @@
                 {% for label, name in slots %}
                 <div class="col-md-3 mb-3">
                     <label class="form-label fw-bold">{{ label }}</label>
-                    <select class="form-select event-slot" name="{{ name }}" id="{{ name }}">
+                    <select class="form-select" id="{{ name }}" name="{{ name }}">
                         <option value="Not participating">Not participating</option>
                     </select>
                 </div>
@@ -64,8 +64,6 @@
 const eventOptions = {{ event_options | tojson }};
 const eventSlotMap = {{ event_slot_map | tojson }};
 
-const gradeSelect = document.getElementById("grade_select");
-
 const slotIdMap = {
     "10-11am": "event_10_11",
     "11-12pm": "event_11_12",
@@ -73,11 +71,15 @@ const slotIdMap = {
     "2-3pm": "event_2_3"
 };
 
-/* ---------- Populate events by grade ---------- */
+let activeLinkedEvent = null;
+
+const gradeSelect = document.getElementById("grade_select");
+
+/* ---------- Populate events on grade change ---------- */
 function populateEvents(grade) {
     if (!grade) return;
 
-    for (const [slot, selectId] of Object.entries(slotIdMap)) {
+    Object.entries(slotIdMap).forEach(([slot, selectId]) => {
         const select = document.getElementById(selectId);
         select.innerHTML = '<option value="Not participating">Not participating</option>';
 
@@ -89,7 +91,7 @@ function populateEvents(grade) {
                 select.appendChild(opt);
             }
         });
-    }
+    });
 }
 
 /* ---------- Helpers ---------- */
@@ -110,26 +112,47 @@ function lockSlot(selectId, allowedEvent) {
 
 /* ---------- Core logic ---------- */
 function handleSlotChange(changedSelectId) {
-    const selectedEvent = document.getElementById(changedSelectId).value;
+    const changedSelect = document.getElementById(changedSelectId);
+    const selectedEvent = changedSelect.value;
 
+    // CASE 1: User selects "Not participating"
+    if (selectedEvent === "Not participating") {
+
+        if (activeLinkedEvent && eventSlotMap[activeLinkedEvent]) {
+            eventSlotMap[activeLinkedEvent].forEach(slot => {
+                document.getElementById(slotIdMap[slot]).value = "Not participating";
+            });
+        }
+
+        activeLinkedEvent = null;
+        Object.values(slotIdMap).forEach(resetSlot);
+        return;
+    }
+
+    // CASE 2: Multi-slot event selected
+    if (eventSlotMap[selectedEvent]) {
+        activeLinkedEvent = selectedEvent;
+
+        eventSlotMap[selectedEvent].forEach(slot => {
+            lockSlot(slotIdMap[slot], selectedEvent);
+        });
+        return;
+    }
+
+    // CASE 3: Single-slot event
+    activeLinkedEvent = null;
     Object.values(slotIdMap).forEach(resetSlot);
-
-    if (!eventSlotMap[selectedEvent]) return;
-
-    eventSlotMap[selectedEvent].forEach(slot => {
-        lockSlot(slotIdMap[slot], selectedEvent);
-    });
 }
 
-/* ---------- Event listeners ---------- */
-gradeSelect.addEventListener("change", () => {
-    populateEvents(gradeSelect.value);
-});
-
+/* ---------- Attach listeners ---------- */
 Object.values(slotIdMap).forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
         handleSlotChange(id);
     });
+});
+
+gradeSelect.addEventListener("change", () => {
+    populateEvents(gradeSelect.value);
 });
 </script>
 
