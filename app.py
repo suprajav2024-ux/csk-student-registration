@@ -267,6 +267,12 @@ def events():
     events = {}
 
     for s in students:
+        student_info = {
+            "name": s["Student Name"],
+            "grade": s["Class"],
+            "section": s["Section"]
+        }
+
         slot_map = {
             "10-11am": s["Event 10-11"],
             "11-12pm": s["Event 11-12"],
@@ -275,15 +281,32 @@ def events():
         }
 
         for slot, event in slot_map.items():
-            if event and event != "Not participating":
-                events.setdefault(event, []).append({
-                    "name": s["Student Name"],
-                    "grade": s["Class"],
-                    "section": s["Section"],
-                    "slot": slot
-                })
+            if not event or event == "Not participating":
+                continue
+
+            events.setdefault(event, {
+                "students": [],
+                "slots": set()
+            })
+
+            # Avoid duplicate students
+            if student_info not in events[event]["students"]:
+                events[event]["students"].append(student_info)
+
+            events[event]["slots"].add(slot)
+
+    # Convert slot sets into readable time ranges
+    for event in events:
+        slots = sorted(events[event]["slots"])
+        if slots:
+            start = slots[0].split("-")[0]
+            end = slots[-1].split("-")[1]
+            events[event]["time"] = f"{start}-{end}"
+        else:
+            events[event]["time"] = ""
 
     return render_template("event_view.html", events=events)
+
 
 
 # ---------------- RUN ----------------
