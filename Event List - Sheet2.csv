@@ -2,7 +2,7 @@ Event,Class,Time Slot 1,Time Slot 2,Maximum Participants
 Story telling ,II,10:00-11:00,,2 per class
 Poetry recitation ,II,10:00-11:00,,2 per class
 Solo song ,II,10:00-11:00,,2 per class
-Relay,II,10:00-11:00,,4 per team | 2 boys and 2 girls | 1 team per category
+Relay - Primary,II,10:00-11:00,,4 per team | 2 boys and 2 girls | 1 team per category
 Group Song,II,10:00-11:00,11:00-12:00,8 per team | 1 team per category
 Thirukkural ,II,11:00-12:00,,2 per class
 Spell Bee ,II,11:00-12:00,,2 per class
@@ -17,7 +17,7 @@ Group dance,II,1:00-2:00,,8 per team | 1 team per category
 Story telling ,III,10:00-11:00,,2 per class
 Poetry recitation ,III,10:00-11:00,,2 per class
 Solo song ,III,10:00-11:00,,2 per class
-Relay,III,10:00-11:00,,4 per team | 2 boys and 2 girls | 1 team per category
+Relay - Primary,III,10:00-11:00,,4 per team | 2 boys and 2 girls | 1 team per category
 Group Song,III,10:00-11:00,11:00-12:00,8 per team | 1 team per category
 Thirukkural ,III,11:00-12:00,,2 per class
 Spell Bee ,III,11:00-12:00,,2 per class
@@ -32,7 +32,7 @@ Group dance,III,1:00-2:00,,8 per team | 1 team per category
 Story telling ,IV,10:00-11:00,,2 per class
 Poetry recitation ,IV,10:00-11:00,,2 per class
 Solo song ,IV,10:00-11:00,,2 per class
-Relay,IV,10:00-11:00,,4 per team | 2 boys and 2 girls | 1 team per category
+Relay - Primary,IV,10:00-11:00,,4 per team | 2 boys and 2 girls | 1 team per category
 Kho-Kho,IV,10:00-11:00,11:00-12:00,9 per team | 1 team per category
 Group Song,IV,10:00-11:00,11:00-12:00,8 per team | 1 team per category
 Thirukkural ,IV,11:00-12:00,,2 per class
@@ -49,7 +49,7 @@ Group dance,IV,1:00-2:00,,8 per team | 1 team per category
 Story telling ,V,10:00-11:00,,2 per class
 Poetry recitation ,V,10:00-11:00,,2 per class
 Solo song ,V,10:00-11:00,,2 per class
-Relay,V,10:00-11:00,,4 per team | 2 boys and 2 girls | 1 team per category
+Relay - Primary,V,10:00-11:00,,4 per team | 2 boys and 2 girls | 1 team per category
 Kho-Kho,V,10:00-11:00,11:00-12:00,9 per team | 1 team per category
 Group Song,V,10:00-11:00,11:00-12:00,8 per team | 1 team per category
 Thirukkural ,V,11:00-12:00,,2 per class
@@ -110,4 +110,5 @@ Kho-kho,VIII,1:00-2:30,,9 per team | 1 team per category
 Carrom,VIII,1:00-2:30,,2 per class
 Comic Strip,VIII,1:00-2:30,,2 per class
 Theatre ,VIII,1:00-2:30,,8 per team | 1 team per category
+
 Group dance,VIII,1:00-2:30,,8 per team | 1 team per category
