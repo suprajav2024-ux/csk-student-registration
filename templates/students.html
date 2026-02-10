@@ -4,11 +4,46 @@
 <div class="container py-5">
 
     <!-- HOME HEADER -->
-    <div class="mb-5 p-4 rounded-4 bg-white shadow-sm">
+    <div class="mb-4 p-4 rounded-4 bg-white shadow-sm">
         <h2 class="mb-1">Welcome 👋</h2>
         <p class="text-muted mb-0">
             Here’s a quick view of all students you’ve registered.
         </p>
+    </div>
+
+    <!-- 📌 EVENT INSTRUCTIONS -->
+    <div class="mb-5">
+        <div class="card shadow-sm rounded-4 border-0">
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-primary mb-3">📌 Event Instructions</h5>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <a href="https://docs.google.com/spreadsheets/d/10afPYlNcUVrIqdW4ejN52c7U2LtlV95ujgEdH7CqxUk/edit?usp=sharing"
+                           target="_blank"
+                           class="btn btn-primary w-100 py-3 fw-semibold">
+                            📘 Grade 2 & 3
+                        </a>
+                    </div>
+
+                    <div class="col-md-4">
+                        <a href="https://docs.google.com/spreadsheets/d/1Vs9grv9YbrYbDZ4fBKTy6BDQqBrQIRWu34Oeir1WINM/edit?gid=763781878#gid=763781878"
+                           target="_blank"
+                           class="btn btn-success w-100 py-3 fw-semibold">
+                            📗 Grade 4 & 5
+                        </a>
+                    </div>
+
+                    <div class="col-md-4">
+                        <a href="https://docs.google.com/spreadsheets/d/1OwELwU7BaiiqHASlY1Lh0JRMt3IVmrGlc75M3zukqPI/edit?gid=27570644#gid=27570644"
+                           target="_blank"
+                           class="btn btn-warning w-100 py-3 fw-semibold">
+                            📕 Grade 6 – 8
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ACTION BAR -->
@@ -41,18 +76,18 @@
                         <td class="fw-medium">{{ s["Student Name"] }}</td>
                         <td>{{ s["Class"] }}</td>
                         <td>{{ s["Section"] }}</td>
-                    
+
                         <td>{{ s["Event 10-11"] if s["Event 10-11"] != "Not participating" else "-" }}</td>
                         <td>{{ s["Event 11-12"] if s["Event 11-12"] != "Not participating" else "-" }}</td>
                         <td>{{ s["Event 1-2"] if s["Event 1-2"] != "Not participating" else "-" }}</td>
                         <td>{{ s["Event 2-3"] if s["Event 2-3"] != "Not participating" else "-" }}</td>
-                    
+
                         <td class="d-flex gap-2">
                             <a href="{{ url_for('edit_student', name=s['Student Name']) }}"
                                class="btn btn-sm btn-outline-primary">
                                 Edit
                             </a>
-                    
+
                             <form method="POST"
                                   action="{{ url_for('delete_student', name=s['Student Name']) }}"
                                   onsubmit="return confirm('Delete this student?');">
