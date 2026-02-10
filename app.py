@@ -21,6 +21,16 @@ FELLOWS_CSV = "Fellow Details _ School + Login - Sheet1.csv"
 EVENTS_CSV = "Event List - Sheet2.csv"
 SHEET_NAME = "CSK Student Event Registrations"
 
+# ---------------- TIME SLOT NORMALIZATION ----------------
+TIME_SLOT_MAP = {
+    "10:00-11:00": "10-11am",
+    "11:00-12:00": "11-12pm",
+    "1:00-2:00": "1-2pm",
+    "13:00-14:00": "1-2pm",
+    "2:00-3:00": "2-3pm",
+    "14:00-15:00": "2-3pm"
+}
+
 # ---------------- GOOGLE SHEET ----------------
 def get_sheet():
     scopes = [
@@ -104,16 +114,24 @@ def load_events():
         for row in reader:
             grade = row["Class"]
             event = row["Event"]
-            s1 = row["Time Slot 1"]
-            s2 = row["Time Slot 2"]
+
+            raw_s1 = row.get("Time Slot 1", "").strip()
+            raw_s2 = row.get("Time Slot 2", "").strip()
+
+            s1 = TIME_SLOT_MAP.get(raw_s1, raw_s1)
+            s2 = TIME_SLOT_MAP.get(raw_s2, raw_s2)
 
             event_options.setdefault(grade, {
-                "10-11am": [], "11-12pm": [], "1-2pm": [], "2-3pm": []
+                "10-11am": [],
+                "11-12pm": [],
+                "1-2pm": [],
+                "2-3pm": []
             })
 
-            if s1:
+            if s1 and s1 in event_options[grade]:
                 event_options[grade][s1].append(event)
-            if s2:
+
+            if s2 and s2 in event_options[grade]:
                 event_options[grade][s2].append(event)
 
             # 🔑 BUILD EVENT → SLOT MAP
@@ -132,7 +150,6 @@ def load_events():
                 event_options[g][s].insert(0, "Not participating")
 
     return event_options, event_slot_map
-
 
 
 EVENT_OPTIONS, EVENT_SLOT_MAP = load_events()
@@ -263,7 +280,6 @@ def events():
         return redirect(url_for("login"))
 
     students = get_students_cached(session["user_id"])
-
     events = {}
 
     for s in students:
@@ -284,18 +300,13 @@ def events():
             if not event or event == "Not participating":
                 continue
 
-            events.setdefault(event, {
-                "students": [],
-                "slots": set()
-            })
+            events.setdefault(event, {"students": [], "slots": set()})
 
-            # Avoid duplicate students
             if student_info not in events[event]["students"]:
                 events[event]["students"].append(student_info)
 
             events[event]["slots"].add(slot)
 
-    # Convert slot sets into readable time ranges
     for event in events:
         slots = sorted(events[event]["slots"])
         if slots:
@@ -306,8 +317,6 @@ def events():
             events[event]["time"] = ""
 
     return render_template("event_view.html", events=events)
-
-
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
