@@ -56,7 +56,6 @@
                     <label class="form-label fw-bold">{{ label }}</label>
                     <select class="form-select event-slot"
                             id="{{ field }}" name="{{ field }}">
-                        <option value="Not participating">Not participating</option>
 
                         {% for ev in event_options[student['Class']][label] %}
                         <option value="{{ ev }}"
