@@ -30,7 +30,7 @@
                 <div class="col-md-3">
                     <label class="form-label">Section</label>
                     <select class="form-select" name="section" required>
-                        {% for s in ['A','B','C','D'] %}
+                        {% for s in ['A','B','C'] %}
                         <option value="{{ s }}"
                             {% if student['Section'] == s %}selected{% endif %}>
                             {{ s }}
